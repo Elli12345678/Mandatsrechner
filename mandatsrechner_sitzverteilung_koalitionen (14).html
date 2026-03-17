@@ -1,0 +1,1483 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mandatsrechner</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --card:#121a33;
+      --text:#e9eeff;
+      --border:rgba(255,255,255,.10);
+      --danger:#ff6b6b;
+      --ok:#42d392;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial;
+      background:radial-gradient(1100px 600px at 10% 0%, rgba(122,162,255,.18), transparent 60%),
+                 radial-gradient(900px 500px at 90% 10%, rgba(66,211,146,.12), transparent 55%),
+                 var(--bg);
+      color:var(--text);
+      padding:24px;
+    }
+    h1{margin:0 0 6px 0; font-size:24px}
+    .sub{color:rgba(233,238,255,.75); margin:0 0 20px 0; line-height:1.35}
+
+    .grid{display:grid; grid-template-columns: 380px 1fr; gap:18px; align-items:start; max-width:1200px; margin:0 auto}
+    @media (max-width: 980px){ .grid{grid-template-columns:1fr;} }
+
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--border);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+      padding:18px;
+    }
+    .row{display:flex; gap:10px; align-items:flex-start}
+    .row > *{flex:1}
+
+    label{display:block; font-size:12px; color:rgba(233,238,255,.78); margin:10px 0 6px}
+    input[type="number"]{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      outline:none;
+      background:rgba(10,14,28,.65);
+      color:var(--text);
+    }
+    input[type="number"]:focus{border-color:rgba(122,162,255,.55); box-shadow:0 0 0 3px rgba(122,162,255,.15)}
+
+    .gm{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin-top:6px;
+      font-size:12px;
+      color:rgba(233,238,255,.70);
+      user-select:none;
+    }
+    .gm input{width:16px; height:16px; margin:0}
+
+    button{
+      width:100%;
+      margin-top:14px;
+      padding:11px 12px;
+      border-radius:12px;
+      border:1px solid rgba(122,162,255,.45);
+      background:linear-gradient(180deg, rgba(122,162,255,.25), rgba(122,162,255,.12));
+      color:var(--text);
+      font-weight:650;
+      cursor:pointer;
+    }
+    button:hover{border-color:rgba(122,162,255,.75)}
+
+    .hint{margin-top:10px; font-size:12px; color:rgba(233,238,255,.70); line-height:1.35}
+    .warn{color:var(--danger)}
+    .ok{color:var(--ok)}
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.03);
+      font-size:12px;
+      color:rgba(233,238,255,.80);
+      white-space:nowrap;
+    }
+
+    table{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:14px; border:1px solid var(--border)}
+    th,td{padding:10px 12px; text-align:left; font-size:13px}
+    th{background:rgba(255,255,255,.05); color:rgba(233,238,255,.85); font-weight:650}
+    tr td{background:rgba(255,255,255,.02); border-top:1px solid rgba(255,255,255,.06)}
+    tr:hover td{background:rgba(122,162,255,.06)}
+
+    .rightGrid{display:grid; grid-template-columns: 1.1fr .9fr; gap:18px}
+    @media (max-width: 980px){ .rightGrid{grid-template-columns:1fr;} }
+
+    .sectionTitle{margin:0 0 10px 0; font-size:14px; color:rgba(233,238,255,.85); font-weight:700}
+
+    .coalWrap{display:flex; flex-direction:column; gap:10px}
+    .coalMeta{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+    .coalList{display:flex; flex-direction:column; gap:8px}
+    .coalItem{
+      display:flex; justify-content:space-between; gap:12px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.02);
+      cursor:pointer;
+      transition: transform .06s ease, filter .12s ease, border-color .12s ease, box-shadow .12s ease;
+      user-select:none;
+    }
+    .coalItem:hover{ filter:brightness(1.25); box-shadow:0 2px 12px rgba(0,0,0,.25) }
+    .coalItem:active{transform:translateY(1px)}
+    .coalItem.active{ filter:brightness(1.35); box-shadow:0 0 0 2px rgba(66,211,146,.45) }
+
+    .swatches{display:flex; gap:6px; align-items:center; margin-bottom:6px}
+    .swatch{width:12px; height:12px; border-radius:4px; border:1px solid rgba(255,255,255,.25)}
+
+    .coalName{font-weight:650}
+    .coalSeats{color:rgba(233,238,255,.80)}
+    .mini{font-size:12px; color:rgba(233,238,255,.70)}
+    .pill{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid rgba(66,211,146,.35);
+      color:rgba(66,211,146,.95);
+      background:rgba(66,211,146,.08);
+      font-size:11px;
+      margin-left:8px;
+      white-space:nowrap;
+    }
+
+    .footerNote{margin-top:10px; font-size:12px; color:rgba(233,238,255,.60); line-height:1.4}
+    .canvasBox{padding:12px 12px 6px}
+    canvas{max-width:100%}
+
+    select{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:rgba(10,14,28,.65);
+      color:var(--text);
+    }
+    select:focus{border-color:rgba(122,162,255,.55); box-shadow:0 0 0 3px rgba(122,162,255,.15); outline:none}
+
+    .inlineBtn{width:auto; margin:0; padding:10px 12px; flex:0 0 auto;}
+
+    hr.sep{
+      width:100%;
+      height:1px;
+      border:0;
+      background:rgba(255,255,255,.08);
+      margin:10px 0;
+    }
+
+    /* Tabs */
+    .tabs{
+      display:flex;
+      flex-wrap:nowrap;
+      gap:3px;
+      margin: -18px -18px 14px -18px;
+      padding: 10px 10px 0 10px;
+      border-bottom:1px solid var(--border);
+    }
+    .tab-btn{
+      flex:1;
+      min-width:0;
+      margin:0;
+      padding:7px 4px;
+      border-radius:10px 10px 0 0;
+      border:1px solid transparent;
+      border-bottom:none;
+      background:transparent;
+      color:rgba(233,238,255,.55);
+      font-weight:600;
+      font-size:11px;
+      cursor:pointer;
+      transition: background .12s, color .12s, border-color .12s;
+      position:relative;
+      bottom:-1px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      text-align:center;
+    }
+    .tab-btn:hover{ color:var(--text); background:rgba(122,162,255,.08); border-color:rgba(122,162,255,.25) }
+    .tab-btn.active{
+      color:var(--text);
+      background:linear-gradient(180deg, rgba(122,162,255,.18), rgba(122,162,255,.06));
+      border-color:rgba(122,162,255,.40);
+      border-bottom-color: var(--card);
+    }
+    .tab-panel{ display:none }
+    .tab-panel.active{ display:block }
+
+    /* Szenarien */
+    .scene-grid{ display:flex; flex-direction:column; gap:8px; margin-top:4px }
+    .scene-item{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.02);
+      cursor:pointer;
+      transition: background .1s, border-color .1s;
+    }
+    .scene-item:hover{ background:rgba(122,162,255,.10); border-color:rgba(122,162,255,.40) }
+    .scene-name{ font-weight:650; font-size:13px }
+    .scene-year{ font-size:12px; color:rgba(233,238,255,.55) }
+    .scene-bars{ display:flex; gap:3px; align-items:flex-end; height:28px }
+    .scene-bar{
+      width:8px; border-radius:3px 3px 0 0;
+      transition: height .2s;
+    }
+
+    /* Bundesland-Buttons */
+    .state-btn{
+      padding:9px 8px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.03);
+      color:var(--text);
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+      text-align:center;
+      transition: background .1s, border-color .1s;
+      width:100%;
+      margin:0;
+    }
+    .state-btn:hover{ background:rgba(122,162,255,.12); border-color:rgba(122,162,255,.40) }
+    .state-btn.selected{ background:rgba(122,162,255,.20); border-color:rgba(122,162,255,.60) }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div class="card">
+      <h1>Mandatsrechner</h1>
+      <p class="sub">Sitzverteilung (Sainte-Laguë/Schepers) + Koalitionsmöglichkeiten. 5%-Hürde aktiv – pro Partei kann sie per „Grundmandatsklausel“ deaktiviert werden.</p>
+
+      <!-- Tab-Navigation -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="eingabe" type="button">✏️ Eingabe</button>
+        <button class="tab-btn" data-tab="umfragen" type="button">📊 Umfragen</button>
+        <button class="tab-btn" data-tab="btw" type="button">🗳️ Bundestagswahlen</button>
+        <button class="tab-btn" data-tab="ltw" type="button">🏛️ Landtagswahlen</button>
+      </div>
+
+      <!-- Panel: Eingabe -->
+      <div class="tab-panel active" id="tab-eingabe">
+      <label for="seats">Sitze im Parlament</label>
+      <input id="seats" type="number" min="1" step="1" value="630" />
+
+      <div class="row">
+        <div>
+          <label for="union">Union (%)</label>
+          <input id="union" type="number" min="0" step="0.01" value="30" />
+          <label class="gm"><input id="gm_union" type="checkbox" /> Grundmandatsklausel</label>
+        </div>
+        <div>
+          <label for="spd">SPD (%)</label>
+          <input id="spd" type="number" min="0" step="0.01" value="18" />
+          <label class="gm"><input id="gm_spd" type="checkbox" /> Grundmandatsklausel</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="fdp">FDP (%)</label>
+          <input id="fdp" type="number" min="0" step="0.01" value="6" />
+          <label class="gm"><input id="gm_fdp" type="checkbox" /> Grundmandatsklausel</label>
+        </div>
+        <div>
+          <label for="gruene">Grüne (%)</label>
+          <input id="gruene" type="number" min="0" step="0.01" value="14" />
+          <label class="gm"><input id="gm_gruene" type="checkbox" /> Grundmandatsklausel</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="fw">FW (%)</label>
+          <input id="fw" type="number" min="0" step="0.01" value="3" />
+          <label class="gm"><input id="gm_fw" type="checkbox" /> Grundmandatsklausel</label>
+        </div>
+        <div>
+          <label for="bsw">BSW (%)</label>
+          <input id="bsw" type="number" min="0" step="0.01" value="7" />
+          <label class="gm"><input id="gm_bsw" type="checkbox" /> Grundmandatsklausel</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="linke">Linke (%)</label>
+          <input id="linke" type="number" min="0" step="0.01" value="5" />
+          <label class="gm"><input id="gm_linke" type="checkbox" /> Grundmandatsklausel</label>
+        </div>
+        <div>
+          <label for="afd">AfD (%)</label>
+          <input id="afd" type="number" min="0" step="0.01" value="17" />
+          <label class="gm"><input id="gm_afd" type="checkbox" /> Grundmandatsklausel</label>
+        </div>
+      </div>
+
+      <button id="calc" type="button">Berechnen</button>
+
+      <div class="hint" id="sumHint"></div>
+      <div class="footerNote">
+        Methode: Sainte-Laguë/Schepers (Divisoren 0,5 / 1,5 / 2,5 / …). Prozentwerte werden bei Bedarf auf 100% normiert.
+      </div>
+      </div><!-- /tab-panel eingabe -->
+
+      <!-- Panel: Letzte Umfragen -->
+      <div class="tab-panel" id="tab-umfragen">
+        <div class="footerNote" style="margin-bottom:10px">
+          Aktuelle Sonntagsfragen der wichtigsten Institute (März 2026). Klick auf eine Umfrage übernimmt die Werte.
+        </div>
+        <!-- Durchschnitt -->
+        <div id="pollAvgBox" class="scene-item" style="cursor:pointer; border-color:rgba(122,162,255,.40); background:rgba(122,162,255,.07); margin-bottom:4px">
+          <div>
+            <div class="scene-name" style="color:rgba(122,162,255,.95)">⌀ Durchschnitt aller Institute</div>
+            <div class="scene-year" id="pollAvgDate">Ø März 2026 · 7 Umfragen</div>
+          </div>
+          <div style="display:flex; align-items:flex-end; gap:10px">
+            <div class="scene-bars" id="pollAvgBars"></div>
+            <button class="inlineBtn" type="button" id="pollAvgLoad" style="font-size:12px; padding:6px 12px">Laden</button>
+          </div>
+        </div>
+        <hr class="sep" style="margin:8px 0">
+        <div class="scene-grid" id="pollList"></div>
+      </div><!-- /tab-panel umfragen -->
+
+      <!-- Panel: Bundestagswahlen -->
+      <div class="tab-panel" id="tab-btw">
+        <div class="footerNote" style="margin-bottom:10px">
+          Alle Bundestagswahlen seit 1949 – klicke auf eine Wahl, um die Ergebnisse zu laden.
+        </div>
+        <div class="scene-grid" id="btwList"></div>
+      </div><!-- /tab-panel btw -->
+
+      <!-- Panel: Landtagswahlen -->
+      <div class="tab-panel" id="tab-ltw">
+        <div class="footerNote" style="margin-bottom:10px">
+          Wähle zuerst ein Bundesland, dann die gewünschte Wahl.
+        </div>
+        <!-- Bundesland-Auswahl -->
+        <div id="ltwStateGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px"></div>
+        <!-- Jahres-Auswahl -->
+        <div id="ltwYearSection" style="display:none">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px">
+            <button id="ltwBack" type="button" class="inlineBtn" style="font-size:12px; padding:6px 10px">← Zurück</button>
+            <span class="scene-name" id="ltwStateName" style="font-size:14px"></span>
+          </div>
+          <div class="scene-grid" id="ltwYearList"></div>
+        </div>
+      </div><!-- /tab-panel ltw -->
+
+    </div>
+
+    <div class="rightGrid">
+      <div class="card">
+        <div class="row" style="align-items:flex-start">
+          <div>
+            <div class="sectionTitle">Sitzanteile (Halb-Kreis)</div>
+            <div class="badge" id="majorityBadge">Mehrheit: –</div>
+
+            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+              <div style="flex:1; min-width:200px">
+                <div class="mini" style="margin-bottom:6px">Sortierung</div>
+                <select id="sortMode">
+                  <option value="size">Nach Größe (Sitze)</option>
+                  <option value="political" selected>Nach politischer Reihenfolge</option>
+                </select>
+              </div>
+              <button id="clearCoal" class="inlineBtn" type="button">Koalition abwählen</button>
+            </div>
+
+            <div class="mini" id="selectedCoalHint" style="margin-top:8px; color:rgba(233,238,255,.75)">Keine Koalition ausgewählt</div>
+          </div>
+          <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px">
+            <div class="mini" id="metaInfo">–</div>
+            <div id="coalInfoBox" style="display:flex; flex-direction:column; align-items:flex-end; gap:5px; margin-top:2px">
+              <div class="badge" id="majorityThresholdBadge" style="font-size:12px; gap:6px">
+                <span style="opacity:.6">Mehrheit ab</span>
+                <span id="majorityThresholdVal" style="font-weight:700; color:rgba(122,162,255,.95)">–</span>
+              </div>
+              <div id="selectionSeatsBadge" class="badge" style="font-size:12px; gap:6px; display:none">
+                <span style="opacity:.6">Auswahl</span>
+                <span id="selectionSeatsVal" style="font-weight:700; color:rgba(66,211,146,.95)">–</span>
+                <span id="selectionMajIcon" style="display:none; font-size:11px">✓ Mehrheit</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="canvasBox">
+          <canvas id="chart" height="240"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sectionTitle">Sitzverteilung</div>
+        <div style="overflow:auto">
+          <table>
+            <thead>
+              <tr><th>Partei</th><th>%</th><th>Sitze</th></tr>
+            </thead>
+            <tbody id="seatTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="coalWrap">
+          <div class="sectionTitle">Koalitionsmöglichkeiten</div>
+          <div class="coalMeta">
+            <span class="badge" id="coalCount">–</span>
+            <span class="badge" id="minWinners">–</span>
+            <label class="badge" style="gap:10px; cursor:pointer; user-select:none;">
+              <input id="realisticOnly" type="checkbox" checked style="width:16px; height:16px; margin:0" />
+              Realistische Koalitionen anzeigen
+            </label>
+            <label class="badge" style="gap:10px; cursor:pointer; user-select:none;">
+              <input id="showMinority" type="checkbox" style="width:16px; height:16px; margin:0" />
+              Koalitionen ohne Mehrheit
+            </label>
+          </div>
+          <div class="coalList" id="coalList"></div>
+          <div id="minorityWrap" style="display:none;">
+            <hr class="sep" />
+            <div class="sectionTitle" style="margin-top:0">Koalitionen ohne Mehrheit (Auswahl)</div>
+            <div class="mini" style="margin-bottom:8px">Es werden nur ausgewählte, häufig diskutierte/erprobte Kombinationen gezeigt.</div>
+            <div class="coalList" id="minorityList"></div>
+          </div>
+          <div class="footerNote">
+            Mehrheit: Kombinationen mit ≥ 50% + 1 Sitz. Klick auf eine Koalition ordnet das Diagramm entsprechend.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const parties = [
+    { key: 'union',  name: 'Union', gm: 'gm_union' },
+    { key: 'spd',    name: 'SPD',   gm: 'gm_spd' },
+    { key: 'fdp',    name: 'FDP',   gm: 'gm_fdp' },
+    { key: 'gruene', name: 'Grüne', gm: 'gm_gruene' },
+    { key: 'fw',     name: 'FW',    gm: 'gm_fw' },
+    { key: 'bsw',    name: 'BSW',   gm: 'gm_bsw' },
+    { key: 'linke',  name: 'Linke', gm: 'gm_linke' },
+    { key: 'afd',    name: 'AfD',   gm: 'gm_afd' },
+  ];
+
+  // Farbvorgaben fürs Diagramm
+  const partyColors = {
+    'Union': '#000000',
+    'SPD':   '#e2001a',
+    'FDP':   '#ffed00',
+    'Grüne': '#008939',
+    'BSW':   '#7a3db8',
+    'Linke': '#ff2ea6',
+    'AfD':   '#009ee0',
+    'FW':    '#ff7a00',
+  };
+
+  // Politische Reihenfolge (links → rechts). (FW ist nicht vorgegeben, daher zwischen FDP und Union eingeordnet.)
+  const politicalOrder = ['Linke','BSW','SPD','Grüne','FDP','FW','Union','AfD'];
+
+  // Whitelist für Minderheits-Koalitionen ("Auswahl")
+  // Hinweis: Passe diese Liste gerne an – siehe Frage unten im Chat.
+  const minorityWhitelist = [
+    // klassische/oft diskutierte Zweier
+    ['Union','FDP'],
+    ['SPD','Grüne'],
+    ['SPD','FDP'],
+    ['Union','Grüne'],
+    ['Union','SPD'],
+
+    // (rot-)rot-grün / varianten
+    ['SPD','Grüne','Linke'],
+    ['SPD','Linke'],
+    ['Grüne','Linke'],
+    ['SPD','Grüne','Linke','BSW'],
+
+    // Linke kann mit BSW, SPD oder Grünen
+    ['Linke','BSW'],
+    ['SPD','BSW','Linke'],
+    ['Grüne','BSW','Linke'],
+
+    // weitere diskutierte Konstellationen
+    ['SPD','BSW'],
+    ['AfD','Union'],
+    ['AfD','BSW'],
+  ];
+
+  let selectedCoalitionMembers = null;
+  let chartSelectionOnly = false; // true = Auswahl kommt aus Diagramm → Liste filtern; false = aus Liste → nur highlighten
+  let chart;
+
+  function readInputs(){
+    const totalSeats = Math.max(1, Math.floor(Number(document.getElementById('seats').value || 0)));
+    const raw = parties.map(p => {
+      const v = Number(document.getElementById(p.key).value);
+      const gm = Boolean(document.getElementById(p.gm)?.checked);
+      return { ...p, pct: (Number.isFinite(v) && v > 0) ? v : 0, gm };
+    });
+    const sum = raw.reduce((a,b) => a + b.pct, 0);
+    const normFactor = sum > 0 ? (100 / sum) : 0;
+    const normalized = raw.map(p => ({...p, pctNorm: p.pct * normFactor }));
+    return { totalSeats, raw: normalized, sumRaw: sum };
+  }
+
+  // Sainte-Laguë/Schepers: divisors 0.5, 1.5, 2.5, ...
+  function allocateSeatsSainteLague(totalSeats, partyVotes){
+    const active = partyVotes.filter(p => p.votes > 0);
+    if (active.length === 0) return partyVotes.map(p => ({...p, seats: 0}));
+
+    const quotients = [];
+    for (const p of active){
+      for (let k=0; k<totalSeats; k++){
+        const divisor = k + 0.5;
+        quotients.push({ party: p.name, q: p.votes / divisor, votes: p.votes, k });
+      }
+    }
+
+    quotients.sort((a,b) => {
+      if (b.q !== a.q) return b.q - a.q;
+      if (b.votes !== a.votes) return b.votes - a.votes;
+      return a.party.localeCompare(b.party, 'de');
+    });
+
+    const winners = quotients.slice(0, totalSeats);
+    const seatMap = new Map();
+    for (const p of partyVotes) seatMap.set(p.name, 0);
+    for (const w of winners) seatMap.set(w.party, (seatMap.get(w.party) || 0) + 1);
+
+    return partyVotes.map(p => ({...p, seats: seatMap.get(p.name) || 0}));
+  }
+
+  function majorityNeeded(totalSeats){
+    return Math.floor(totalSeats / 2) + 1;
+  }
+
+  function enumerateCoalitions(seatRows){
+    const active = seatRows.filter(r => r.seats > 0);
+    const n = active.length;
+    const all = [];
+    for (let mask = 1; mask < (1<<n); mask++){
+      let seats = 0;
+      const members = [];
+      for (let i=0; i<n; i++){
+        if (mask & (1<<i)){
+          seats += active[i].seats;
+          members.push(active[i].name);
+        }
+      }
+      all.push({ members, seats });
+    }
+    return all;
+  }
+
+  function markMinimalWinners(coalitions, seatRows, totalSeats){
+    const maj = majorityNeeded(totalSeats);
+    for (const r of coalitions){
+      let minimal = true;
+      for (let i=0; i<r.members.length; i++){
+        const subMembers = r.members.filter((_,idx) => idx !== i);
+        const subSeats = subMembers.reduce((acc, nm) => acc + (seatRows.find(x => x.name === nm)?.seats || 0), 0);
+        if (subSeats >= maj){ minimal = false; break; }
+      }
+      r.minimal = minimal;
+    }
+  }
+
+  // „Realistisch“-Filterregeln (wie vorgegeben, mit Anpassung AfD+BSW erlaubt)
+  function isRealisticCoalition(members){
+    if (members.length >= 5) return false;
+    const s = new Set(members);
+
+    // AfD nur alleine oder mit BSW (AfD+BSW erlaubt)
+    if (s.has('AfD')){
+      const allowed = (members.length === 1) || (members.length === 2 && s.has('BSW'));
+      if (!allowed) return false;
+    }
+
+    // Linke mit FDP, FW, Union ausgeschlossen
+    if (s.has('Linke') && (s.has('FDP') || s.has('FW') || s.has('Union'))) return false;
+
+    // BSW mit FDP und FW ausgeschlossen (AfD+BSW bleibt erlaubt)
+    if (s.has('BSW') && (s.has('FDP') || s.has('FW'))) return false;
+
+    return true;
+  }
+
+  function sameMembers(a, b){
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    const aa = [...a].sort();
+    const bb = [...b].sort();
+    for (let i=0; i<aa.length; i++) if (aa[i] !== bb[i]) return false;
+    return true;
+  }
+
+  function isWhitelistedMinority(members){
+    return minorityWhitelist.some(w => sameMembers(w, members));
+  }
+
+  // Hex-Farbe zu rgba mit Deckkraft
+  function hexToRgba(hex, alpha){
+    const h = hex.replace('#','');
+    const r = parseInt(h.substring(0,2),16);
+    const g = parseInt(h.substring(2,4),16);
+    const b = parseInt(h.substring(4,6),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function renderChart(labels, data, colors){
+    const ctx = document.getElementById('chart');
+
+    const selectedSet = new Set(selectedCoalitionMembers || []);
+    const anySelected = selectedSet.size > 0;
+
+    const bgColors = colors.map((c, i) => {
+      const isSelected = selectedSet.has(labels[i]);
+      const alpha = isSelected ? 1 : (anySelected ? 0.28 : 1);
+      return c.startsWith('#') ? hexToRgba(c, alpha) : c;
+    });
+    const borderColors = labels.map(l => selectedSet.has(l) ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.15)');
+    const borderWidths = labels.map(l => selectedSet.has(l) ? 4 : 1);
+
+    // Chart wiederverwenden wenn möglich, sonst neu erstellen
+    if (chart && chart.data.labels.length === labels.length &&
+        chart.data.labels.every((l,i) => l === labels[i])){
+      chart.data.datasets[0].backgroundColor = bgColors;
+      chart.data.datasets[0].borderColor = borderColors;
+      chart.data.datasets[0].borderWidth = borderWidths;
+      chart.update('none');
+      return;
+    }
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: bgColors,
+          borderColor: borderColors,
+          borderWidth: borderWidths,
+          hoverOffset: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        rotation: -90,
+        circumference: 180,
+        onClick: (event, elements) => {
+          if (!elements || elements.length === 0) return;
+          const idx = elements[0].index;
+          const partyName = chart.data.labels[idx];
+          if (!partyName) return;
+
+          if (!selectedCoalitionMembers) selectedCoalitionMembers = [];
+          const pos = selectedCoalitionMembers.indexOf(partyName);
+          if (pos === -1) {
+            selectedCoalitionMembers = [...selectedCoalitionMembers, partyName];
+          } else {
+            selectedCoalitionMembers = selectedCoalitionMembers.filter(m => m !== partyName);
+            if (selectedCoalitionMembers.length === 0) selectedCoalitionMembers = null;
+          }
+          updateSelectedCoalHint();
+          updateUI();
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: 'rgba(233,238,255,.85)',
+              boxWidth: 12,
+              usePointStyle: true,
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const seats = ctx.parsed;
+                const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                const pct = total ? (100*seats/total) : 0;
+                const sel = selectedSet.has(ctx.label) ? ' ✓' : '';
+                return ` ${ctx.label}: ${seats} Sitze (${pct.toFixed(1)}%)${sel}`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    ctx.style.cursor = 'pointer';
+  }
+
+  function sortRows(rows, mode){
+    if (mode === 'political'){
+      const idx = (name) => {
+        const i = politicalOrder.indexOf(name);
+        return i === -1 ? 999 : i;
+      };
+      return [...rows].sort((a,b) => idx(a.name) - idx(b.name));
+    }
+    return [...rows].sort((a,b) => b.seats - a.seats || b.votes - a.votes || a.name.localeCompare(b.name,'de'));
+  }
+
+  function applyCoalitionOrder(rows, mode){
+    const base = sortRows(rows, mode);
+    if (!selectedCoalitionMembers || selectedCoalitionMembers.length === 0) return base;
+
+    const set = new Set(selectedCoalitionMembers);
+    const inCoal = base.filter(r => set.has(r.name));
+    const notCoal = base.filter(r => !set.has(r.name));
+
+    const inCoalOrdered = sortRows(inCoal, 'political');
+    return [...inCoalOrdered, ...notCoal];
+  }
+
+  function updateSelectedCoalHint(){
+    const el = document.getElementById('selectedCoalHint');
+    if (!selectedCoalitionMembers || selectedCoalitionMembers.length === 0){
+      el.textContent = 'Keine Partei ausgewählt – im Diagramm anklicken zum Filtern';
+      return;
+    }
+    const dots = selectedCoalitionMembers.map(m => {
+      const c = partyColors[m] ?? '#888';
+      return `<span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${c};margin-right:3px;vertical-align:middle"></span>${m}`;
+    }).join(' <span style="opacity:.5">+</span> ');
+    el.innerHTML = `Filter: ${dots} <span style="opacity:.5">· Nochmal klicken zum Entfernen</span>`;
+  }
+
+  function renderCoalitionList(containerEl, items, seatRows, totalSeats, showMinimalLabel){
+    containerEl.innerHTML = '';
+    if (items.length === 0){
+      const div = document.createElement('div');
+      div.className = 'mini';
+      div.textContent = 'Keine passenden Koalitionen.';
+      containerEl.appendChild(div);
+      return;
+    }
+
+    const MAX_SHOW = 30;
+    const renderItems = (subset) => {
+      for (const r of subset){
+        const el = document.createElement('div');
+        el.className = 'coalItem';
+        // Mitglieder für Anzeige: größere Partei zuerst (nach Sitzen), bei Gleichstand politische Reihenfolge
+        const seatMap = new Map(seatRows.map(x => [x.name, x.seats]));
+        const polIdx = (nm) => {
+          const i = politicalOrder.indexOf(nm);
+          return i === -1 ? 999 : i;
+        };
+        const membersOrdered = [...r.members].sort((a,b) => {
+          const sa = seatMap.get(a) ?? 0;
+          const sb = seatMap.get(b) ?? 0;
+          if (sb !== sa) return sb - sa; // größere zuerst
+          return polIdx(a) - polIdx(b);
+        });
+
+        el.dataset.members = JSON.stringify(membersOrdered);
+
+        // Farbverlauf aus Parteifarben
+        const gradientColors = membersOrdered.map(m => partyColors[m] ?? 'rgba(255,255,255,.18)');
+        let bgGradient;
+        if (gradientColors.length === 1) {
+          bgGradient = `linear-gradient(135deg, ${gradientColors[0]}70 0%, ${gradientColors[0]}25 100%)`;
+        } else {
+          const stops = gradientColors.map((c, i) => {
+            const pct = Math.round((i / (gradientColors.length - 1)) * 100);
+            return `${c}65 ${pct}%`;
+          }).join(', ');
+          bgGradient = `linear-gradient(135deg, ${stops})`;
+        }
+        el.style.background = bgGradient;
+        el.style.borderColor = `${gradientColors[0]}80`;
+
+        const name = membersOrdered.join(' + ');
+        const minimalPill = (showMinimalLabel && r.minimal) ? '<span class="pill">Minimal</span>' : '';
+        const swatches = membersOrdered.map(m => {
+          const c = partyColors[m] ?? 'rgba(255,255,255,.18)';
+          return `<span class="swatch" title="${m}" style="background:${c}"></span>`;
+        }).join('');
+
+        el.innerHTML = `
+          <div>
+            <div class="swatches" aria-label="Koalitionsfarben">${swatches}</div>
+            <div class="coalName">${name}${minimalPill}</div>
+            <div class="mini">Parteien: ${r.members.length}</div>
+          </div>
+          <div class="coalSeats">${r.seats} Sitze</div>
+        `;
+
+        // Aktiv-Markierung: alle ausgewählten Parteien in dieser Koalition enthalten?
+        const sel = new Set(selectedCoalitionMembers || []);
+        if (sel.size > 0 && [...sel].every(p => r.members.includes(p))){
+          el.classList.add('active');
+        }
+
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          // Klick auf Koalitionsitem: alle Mitglieder als Auswahl setzen (togglen falls gleich)
+          const members = JSON.parse(el.dataset.members);
+          const alreadyExact = selectedCoalitionMembers &&
+            members.length === selectedCoalitionMembers.length &&
+            members.every(m => selectedCoalitionMembers.includes(m));
+          selectedCoalitionMembers = alreadyExact ? null : members;
+          updateSelectedCoalHint();
+          updateUI();
+        });
+
+        containerEl.appendChild(el);
+      }
+    };
+
+    renderItems(items.slice(0, MAX_SHOW));
+
+    if (items.length > MAX_SHOW){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.style.marginTop = '8px';
+      btn.textContent = `Weitere ${items.length - MAX_SHOW} anzeigen`;
+      let expanded = false;
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (expanded) return;
+        expanded = true;
+        btn.disabled = true;
+        btn.textContent = 'Alle angezeigt';
+        renderItems(items.slice(MAX_SHOW));
+      });
+      containerEl.appendChild(btn);
+    }
+  }
+
+  function filterBySelected(coalitions){
+    if (!selectedCoalitionMembers || selectedCoalitionMembers.length === 0) return coalitions;
+    const sel = new Set(selectedCoalitionMembers);
+    return coalitions.filter(r => [...sel].every(p => r.members.includes(p)));
+  }
+
+  function updateUI(){
+    const { totalSeats, raw, sumRaw } = readInputs();
+
+    // Summe-Hinweis
+    const hint = document.getElementById('sumHint');
+    if (!Number.isFinite(sumRaw) || sumRaw <= 0){
+      hint.innerHTML = `<span class="warn">Bitte Prozentwerte eingeben.</span>`;
+    } else {
+      const delta = Math.abs(sumRaw - 100);
+      const normalizedMsg = (delta < 0.001) ? '' : ' (wird auf 100% normiert)';
+      hint.innerHTML = `<span class="${delta < 0.001 ? 'ok' : 'warn'}">Summe: ${sumRaw.toFixed(2)}%${normalizedMsg}</span>`;
+    }
+
+    const HURDLE = 5;
+
+    // 5%-Hürde + Grundmandatsklausel (pro Partei)
+    const withHurdle = raw.map(p => ({
+      ...p,
+      eligible: (p.pctNorm >= HURDLE) || Boolean(p.gm)
+    }));
+
+    const excluded = withHurdle.filter(p => p.pctNorm > 0 && !p.eligible);
+
+    const votes = withHurdle.map(p => ({ name: p.name, votes: (p.eligible ? p.pctNorm : 0) }));
+    const allocated = allocateSeatsSainteLague(totalSeats, votes);
+
+    // Tabelle
+    const tb = document.getElementById('seatTable');
+    tb.innerHTML = '';
+    const bySeatsDesc = [...allocated].sort((a,b) => b.seats - a.seats || b.votes - a.votes);
+    for (const r of bySeatsDesc){
+      const pctObj = withHurdle.find(x => x.name === r.name);
+      const pct = (pctObj?.pctNorm ?? 0);
+      const eligible = Boolean(pctObj?.eligible);
+      const gm = Boolean(pctObj?.gm);
+      const note = (!eligible && pct > 0) ? ' <span class="mini warn">(unter 5%)</span>' : (gm && pct > 0 && pct < HURDLE ? ' <span class="mini ok">(Grundmandat)</span>' : '');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.name}${note}</td><td>${pct.toFixed(2)}</td><td>${r.seats}</td>`;
+      tb.appendChild(tr);
+    }
+
+    // Diagramm – nur wahlberechtigte Parteien (≥5% oder Grundmandat) mit Sitzen
+    const eligibleNames = new Set(withHurdle.filter(p => p.eligible).map(p => p.name));
+    const rowsWithSeats = bySeatsDesc.filter(r => r.seats > 0 && eligibleNames.has(r.name));
+    const mode = document.getElementById('sortMode')?.value || 'size';
+    const chartRows = applyCoalitionOrder(rowsWithSeats, mode);
+
+    if (chartRows.length === 0){
+      renderChart(['Keine Sitze'], [1], ['rgba(255,255,255,.10)']);
+    } else {
+      renderChart(
+        chartRows.map(r => r.name),
+        chartRows.map(r => r.seats),
+        chartRows.map(r => partyColors[r.name] ?? 'rgba(255,255,255,.18)')
+      );
+    }
+
+    // Meta
+    const maj = majorityNeeded(totalSeats);
+    document.getElementById('majorityBadge').textContent = `Mehrheit: ${maj} Sitze`;
+    document.getElementById('majorityThresholdVal').textContent = `${maj} Sitze`;
+    const sumSeats = allocated.reduce((a,b)=>a+b.seats,0);
+    document.getElementById('metaInfo').textContent = `Vergeben: ${sumSeats} / ${totalSeats} · Unter 5%: ${excluded.length}`;
+
+    // Auswahl-Sitze anzeigen
+    const selBadge = document.getElementById('selectionSeatsBadge');
+    const selVal = document.getElementById('selectionSeatsVal');
+    const selIcon = document.getElementById('selectionMajIcon');
+    if (selectedCoalitionMembers && selectedCoalitionMembers.length > 0){
+      const selSeats = selectedCoalitionMembers.reduce((acc, name) => {
+        return acc + (allocated.find(r => r.name === name)?.seats || 0);
+      }, 0);
+      const selPct = sumSeats > 0 ? (selSeats / totalSeats * 100).toFixed(1) : '0';
+      selVal.textContent = `${selSeats} Sitze (${selPct}%)`;
+      const hasMaj = selSeats >= maj;
+      selIcon.style.display = hasMaj ? 'inline' : 'none';
+      selIcon.style.color = 'rgba(66,211,146,.95)';
+      selVal.style.color = hasMaj ? 'rgba(66,211,146,.95)' : 'rgba(255,180,80,.95)';
+      selBadge.style.display = 'flex';
+    } else {
+      selBadge.style.display = 'none';
+    }
+
+    // Koalitionen (Mehrheit + Minderheit)
+    const allCoalitions = enumerateCoalitions(allocated);
+
+    // Mehrheits-Koalitionen
+    const majority = allCoalitions.filter(r => r.seats >= maj);
+    markMinimalWinners(majority, allocated, totalSeats);
+    majority.sort((a,b) => {
+      if (a.minimal !== b.minimal) return (b.minimal ? 1 : 0) - (a.minimal ? 1 : 0);
+      if (a.members.length !== b.members.length) return a.members.length - b.members.length;
+      if (b.seats !== a.seats) return b.seats - a.seats;
+      return a.members.join('+').localeCompare(b.members.join('+'), 'de');
+    });
+
+    const realisticOnly = Boolean(document.getElementById('realisticOnly')?.checked);
+    const majorityFiltered = realisticOnly ? majority.filter(r => isRealisticCoalition(r.members)) : majority;
+
+    // Minderheitskoalitionen (Whitelist-Auswahl)
+    let minority = allCoalitions
+      .filter(r => r.seats < maj)
+      .filter(r => isWhitelistedMinority(r.members));
+
+    // Wenn "Realistisch" aktiv ist, muss das auch für Minderheits-Koalitionen gelten
+    if (realisticOnly){
+      minority = minority.filter(r => isRealisticCoalition(r.members));
+    }
+
+    minority.sort((a,b) => {
+      if (a.members.length !== b.members.length) return a.members.length - b.members.length;
+      if (b.seats !== a.seats) return b.seats - a.seats;
+      return a.members.join('+').localeCompare(b.members.join('+'), 'de');
+    });
+
+    const showMinority = Boolean(document.getElementById('showMinority')?.checked);
+    const coalListEl = document.getElementById('coalList');
+    const minorityWrap = document.getElementById('minorityWrap');
+    const minorityListEl = document.getElementById('minorityList');
+    const minWinnersEl = document.getElementById('minWinners');
+    const coalCountEl = document.getElementById('coalCount');
+
+    if (showMinority){
+      coalListEl.style.display = 'none';
+      minorityWrap.style.display = 'block';
+      minWinnersEl.style.display = 'none';
+
+      coalCountEl.textContent = `Koalitionen ohne Mehrheit (Auswahl): ${minority.length}${realisticOnly ? ' (realistisch)' : ''}`;
+      renderCoalitionList(minorityListEl, minority, allocated, totalSeats, false);
+
+    } else {
+      coalListEl.style.display = 'flex';
+      minorityWrap.style.display = 'none';
+      minorityListEl.innerHTML = '';
+      minWinnersEl.style.display = 'inline-flex';
+
+      coalCountEl.textContent = `Mehrheits-Koalitionen: ${majorityFiltered.length}${realisticOnly ? ' (realistisch)' : ''}`;
+      const minimalCount = majorityFiltered.filter(r => r.minimal).length;
+      minWinnersEl.textContent = `davon minimal: ${minimalCount}`;
+
+      renderCoalitionList(coalListEl, majorityFiltered, allocated, totalSeats, true);
+    }
+
+    updateSelectedCoalHint();
+  }
+
+  // ---- Minimaler Self-Test (Konsole) ----
+  function runSelfTests(){
+    try {
+      const alloc = allocateSeatsSainteLague(10, [
+        {name:'A', votes:60},
+        {name:'B', votes:40},
+      ]);
+      console.assert(alloc.reduce((a,b)=>a+b.seats,0) === 10, 'Test: Sitzsumme != total');
+
+      console.assert(isRealisticCoalition(['AfD','BSW']) === true, 'Test: AfD+BSW sollte realistisch sein');
+      console.assert(isRealisticCoalition(['Linke','BSW']) === true, 'Test: Linke+BSW sollte realistisch sein');
+      console.assert(isRealisticCoalition(['Linke','SPD']) === true, 'Test: Linke+SPD sollte realistisch sein');
+      console.assert(isRealisticCoalition(['Linke','Grüne']) === true, 'Test: Linke+Grüne sollte realistisch sein');
+      console.assert(isRealisticCoalition(['AfD','Union']) === false, 'Test: AfD+Union sollte unrealistisch sein');
+
+      console.assert(isWhitelistedMinority(['SPD','Grüne']) === true, 'Test: SPD+Grüne sollte whitelisted sein');
+
+      console.info('Self-Tests: OK');
+    } catch (e){
+      console.warn('Self-Tests: Fehler', e);
+    }
+  }
+
+  // ================================================================
+  // LETZTE UMFRAGEN (Sonntagsfragen März 2026)
+  // ================================================================
+  const polls = [
+    {
+      name: 'INSA / Bild am Sonntag',
+      date: '06. März 2026',
+      seats: 630,
+      values: { union:26, afd:25, spd:15, gruene:11, linke:11, fdp:4, bsw:3, fw:0 }
+    },
+    {
+      name: 'Ipsos / n-tv',
+      date: '05. März 2026',
+      seats: 630,
+      values: { union:25, afd:24, spd:15, gruene:14, linke:11, fdp:4, bsw:3, fw:0 }
+    },
+    {
+      name: 'GMS',
+      date: '03. März 2026',
+      seats: 630,
+      values: { union:26, afd:24, spd:16, gruene:12, linke:10, bsw:3, fdp:3, fw:2 }
+    },
+    {
+      name: 'Allensbach / FAZ',
+      date: '02. März 2026',
+      seats: 630,
+      values: { union:27, afd:24, spd:16, gruene:12, linke:10, fdp:4, bsw:0, fw:0 }
+    },
+    {
+      name: 'Forschungsgruppe Wahlen / ZDF-Politbarometer',
+      date: '27. Feb. 2026',
+      seats: 630,
+      values: { union:26, afd:24, spd:15, gruene:12, linke:11, fdp:0, bsw:0, fw:0 }
+    },
+    {
+      name: 'Infratest dimap / ARD-DeutschlandTREND',
+      date: '05. März 2026',
+      seats: 630,
+      values: { union:26, afd:24, spd:15, gruene:13, linke:11, fdp:4, bsw:3, fw:0 }
+    },
+    {
+      name: 'Forsa / RTL-ntv-Trendbarometer',
+      date: '10. März 2026',
+      seats: 630,
+      values: { union:26, afd:24, spd:14, gruene:13, linke:11, fdp:3, bsw:3, fw:2 }
+    },
+  ];
+
+  // Durchschnitt berechnen
+  function computePollAverage(pollList){
+    const keys = ['union','afd','spd','gruene','linke','fdp','bsw','fw'];
+    const avg = {};
+    for (const k of keys){
+      const vals = pollList.map(p => p.values[k] || 0).filter(v => v > 0);
+      avg[k] = vals.length ? Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10 : 0;
+    }
+    return avg;
+  }
+
+  // ================================================================
+  // BUNDESTAGSWAHLEN 1949–2025
+  // ================================================================
+  const btwElections = [
+    { year:2025, date:'23. Feb. 2025', seats:630, values:{ union:28.6, afd:20.8, spd:16.4, gruene:11.6, linke:8.8, bsw:4.97, fdp:4.3, fw:2.3 } },
+    { year:2021, date:'26. Sep. 2021', seats:736, values:{ spd:25.7, union:24.1, gruene:14.8, fdp:11.5, afd:10.3, linke:4.9, fw:2.4, bsw:0 } },
+    { year:2017, date:'24. Sep. 2017', seats:709, values:{ union:32.9, spd:20.5, afd:12.6, fdp:10.7, linke:9.2, gruene:8.9, fw:1.0, bsw:0 } },
+    { year:2013, date:'22. Sep. 2013', seats:631, values:{ union:41.5, spd:25.7, linke:8.6, gruene:8.4, fdp:4.8, afd:4.7, fw:2.0, bsw:0 } },
+    { year:2009, date:'27. Sep. 2009', seats:622, values:{ union:33.8, spd:23.0, fdp:14.6, linke:11.9, gruene:10.7, fw:0, afd:0, bsw:0 } },
+    { year:2005, date:'18. Sep. 2005', seats:614, values:{ union:35.2, spd:34.2, fdp:9.8, linke:8.7, gruene:8.1, fw:0, afd:0, bsw:0 } },
+    { year:2002, date:'22. Sep. 2002', seats:603, values:{ spd:38.5, union:38.5, gruene:8.6, fdp:7.4, linke:4.0, fw:0, afd:0, bsw:0 } },
+    { year:1998, date:'27. Sep. 1998', seats:669, values:{ spd:40.9, union:35.1, gruene:6.7, fdp:6.2, linke:5.1, fw:0, afd:0, bsw:0 } },
+    { year:1994, date:'16. Okt. 1994', seats:672, values:{ union:41.5, spd:36.4, gruene:7.3, fdp:6.9, linke:4.4, fw:0, afd:0, bsw:0 } },
+    { year:1990, date:'02. Dez. 1990', seats:662, values:{ union:43.8, spd:33.5, fdp:11.0, gruene:3.8, linke:2.4, fw:0, afd:0, bsw:0 } },
+    { year:1987, date:'25. Jan. 1987', seats:497, values:{ union:44.3, spd:37.0, fdp:9.1, gruene:8.3, linke:0, fw:0, afd:0, bsw:0 } },
+    { year:1983, date:'06. März 1983', seats:498, values:{ union:48.8, spd:38.2, fdp:7.0, gruene:5.6, linke:0, fw:0, afd:0, bsw:0 } },
+    { year:1980, date:'05. Okt. 1980', seats:497, values:{ spd:42.9, union:44.5, fdp:10.6, gruene:1.5, linke:0, fw:0, afd:0, bsw:0 } },
+    { year:1976, date:'03. Okt. 1976', seats:496, values:{ union:48.6, spd:42.6, fdp:7.9, linke:0, gruene:0, fw:0, afd:0, bsw:0 } },
+    { year:1972, date:'19. Nov. 1972', seats:496, values:{ spd:45.8, union:44.9, fdp:8.4, linke:0, gruene:0, fw:0, afd:0, bsw:0 } },
+    { year:1969, date:'28. Sep. 1969', seats:496, values:{ union:46.1, spd:42.7, fdp:5.8, linke:0, gruene:0, fw:0, afd:0, bsw:0 } },
+    { year:1965, date:'19. Sep. 1965', seats:496, values:{ union:47.6, spd:39.3, fdp:9.5, linke:0, gruene:0, fw:0, afd:0, bsw:0 } },
+    { year:1961, date:'17. Sep. 1961', seats:499, values:{ union:45.3, spd:36.2, fdp:12.8, linke:0, gruene:0, fw:0, afd:0, bsw:0 } },
+    { year:1957, date:'15. Sep. 1957', seats:519, values:{ union:50.2, spd:31.8, fdp:7.7, linke:0, gruene:0, fw:0, afd:0, bsw:0 } },
+    { year:1953, date:'06. Sep. 1953', seats:487, values:{ union:45.2, spd:28.8, fdp:9.5, linke:0, gruene:0, fw:0, afd:0, bsw:0 } },
+    { year:1949, date:'14. Aug. 1949', seats:402, values:{ union:31.0, spd:29.2, fdp:11.9, linke:0, gruene:0, fw:0, afd:0, bsw:0 } },
+  ];
+
+  // ================================================================
+  // HILFSFUNKTIONEN
+  // ================================================================
+  function buildSceneBar(values){
+    const order = ['union','spd','gruene','fdp','fw','bsw','linke','afd'];
+    const colors = {
+      union:'#555', spd:'#e2001a', gruene:'#008939', fdp:'#ffed00',
+      fw:'#ff7a00', bsw:'#7a3db8', linke:'#ff2ea6', afd:'#009ee0'
+    };
+    const allVals = Object.values(values).filter(v => v > 0);
+    const max = allVals.length ? Math.max(...allVals) : 1;
+    const wrap = document.createElement('div');
+    wrap.className = 'scene-bars';
+    for (const k of order){
+      const v = values[k] || 0;
+      if (v === 0) continue;
+      const bar = document.createElement('div');
+      bar.className = 'scene-bar';
+      bar.style.background = colors[k] || '#888';
+      bar.style.height = Math.round((v / max) * 28) + 'px';
+      bar.title = k.charAt(0).toUpperCase()+k.slice(1) + ': ' + v + '%';
+      wrap.appendChild(bar);
+    }
+    return wrap;
+  }
+
+  function buildSceneItem(name, sub, values, seats, onLoad){
+    const item = document.createElement('div');
+    item.className = 'scene-item';
+
+    const info = document.createElement('div');
+    info.innerHTML = `<div class="scene-name">${name}</div><div class="scene-year">${sub}</div>`;
+
+    const right = document.createElement('div');
+    right.style.cssText = 'display:flex;align-items:flex-end;gap:10px';
+    right.appendChild(buildSceneBar(values));
+
+    const btn = document.createElement('button');
+    btn.className = 'inlineBtn'; btn.type = 'button'; btn.textContent = 'Laden';
+    btn.style.cssText = 'font-size:12px;padding:6px 12px';
+    btn.addEventListener('click', e => { e.stopPropagation(); onLoad(); });
+    right.appendChild(btn);
+
+    item.appendChild(info); item.appendChild(right);
+    item.addEventListener('click', onLoad);
+    return item;
+  }
+
+  function applyScenario(sc){
+    document.getElementById('seats').value = sc.seats;
+    const allKeys = ['union','spd','fdp','gruene','fw','bsw','linke','afd'];
+    for (const key of allKeys){
+      const el = document.getElementById(key);
+      if (el) el.value = sc.values[key] ?? 0;
+    }
+    switchTab('eingabe');
+    updateUI();
+  }
+
+  // ================================================================
+  // RENDER: UMFRAGEN
+  // ================================================================
+  function renderPolls(){
+    // Durchschnitt-Box
+    const avgValues = computePollAverage(polls);
+    const avgSc = { seats:630, values: avgValues };
+
+    const avgBox = document.getElementById('pollAvgBox');
+    const avgBarsEl = document.getElementById('pollAvgBars');
+    if (avgBarsEl){ avgBarsEl.innerHTML=''; avgBarsEl.appendChild(buildSceneBar(avgValues)); }
+    if (avgBox){ avgBox.onclick = () => applyScenario(avgSc); }
+    document.getElementById('pollAvgLoad')?.addEventListener('click', e => { e.stopPropagation(); applyScenario(avgSc); });
+
+    // Einzelumfragen
+    const el = document.getElementById('pollList');
+    if (!el) return;
+    el.innerHTML = '';
+    for (const p of polls){
+      el.appendChild(buildSceneItem(p.name, p.date, p.values, p.seats, () => applyScenario(p)));
+    }
+  }
+
+  // ================================================================
+  // RENDER: BUNDESTAGSWAHLEN
+  // ================================================================
+  function renderBTW(){
+    const el = document.getElementById('btwList');
+    if (!el) return;
+    el.innerHTML = '';
+    for (const w of btwElections){
+      el.appendChild(buildSceneItem(
+        `Bundestagswahl ${w.year}`,
+        `${w.date} · ${w.seats} Sitze`,
+        w.values, w.seats,
+        () => applyScenario(w)
+      ));
+    }
+  }
+
+  // ================================================================
+  // LANDTAGSWAHLEN – Daten
+  // Parteischlüssel: union/cdu/csu, spd, gruene, fdp, linke, afd, bsw, fw, ssw, sonstige
+  // Für den Rechner werden auf Bundesebene-Schlüssel (union, spd, gruene, fdp, linke, afd, bsw, fw) gemappt
+  // ================================================================
+  const ltwData = {
+    'Baden-Württemberg': {
+      seats: 154,
+      elections: [
+        { year:2026, date:'08. März 2026', values:{ union:34.6, gruene:15.8, spd:13.7, afd:12.5, fdp:4.8, linke:0, bsw:0, fw:0 } },
+        { year:2021, date:'14. März 2021', values:{ gruene:32.6, union:24.1, spd:11.0, afd:9.7, fdp:10.5, linke:3.6, bsw:0, fw:1.0 } },
+        { year:2016, date:'13. März 2016', values:{ gruene:30.3, union:27.0, spd:12.7, afd:15.1, fdp:8.3, linke:2.9, bsw:0, fw:0 } },
+        { year:2011, date:'27. März 2011', values:{ gruene:24.2, union:39.0, spd:23.1, afd:0, fdp:5.3, linke:2.8, bsw:0, fw:0 } },
+        { year:2006, date:'26. März 2006', values:{ union:44.2, spd:25.2, gruene:11.7, fdp:10.7, linke:3.1, afd:0, bsw:0, fw:0 } },
+        { year:2001, date:'25. März 2001', values:{ union:44.8, spd:33.3, gruene:7.7, fdp:8.1, linke:0, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Bayern': {
+      seats: 203,
+      elections: [
+        { year:2023, date:'08. Okt. 2023', values:{ union:37.0, fw:15.8, afd:14.6, gruene:9.2, spd:8.4, fdp:3.0, linke:1.5, bsw:0 } },
+        { year:2018, date:'14. Okt. 2018', values:{ union:37.2, fw:11.6, afd:10.2, gruene:17.6, spd:9.7, fdp:5.1, linke:3.2, bsw:0 } },
+        { year:2013, date:'15. Sep. 2013', values:{ union:47.7, fw:9.0, afd:0, gruene:8.6, spd:20.6, fdp:3.3, linke:2.1, bsw:0 } },
+        { year:2008, date:'28. Sep. 2008', values:{ union:43.4, fw:10.2, afd:0, gruene:9.4, spd:18.6, fdp:8.0, linke:4.4, bsw:0 } },
+        { year:2003, date:'21. Sep. 2003', values:{ union:60.7, gruene:7.7, spd:19.6, fdp:2.6, fw:4.0, linke:0, afd:0, bsw:0 } },
+      ]
+    },
+    'Berlin': {
+      seats: 159,
+      elections: [
+        { year:2023, date:'12. Feb. 2023', values:{ union:28.2, spd:18.4, gruene:13.9, linke:12.2, afd:9.1, fdp:4.6, bsw:0, fw:0 } },
+        { year:2021, date:'26. Sep. 2021', values:{ spd:21.4, gruene:18.9, union:18.0, linke:14.0, afd:8.0, fdp:7.2, bsw:0, fw:0 } },
+        { year:2016, date:'18. Sep. 2016', values:{ spd:21.6, union:17.6, linke:15.6, gruene:15.2, afd:14.2, fdp:6.7, bsw:0, fw:0 } },
+        { year:2011, date:'18. Sep. 2011', values:{ spd:28.3, union:23.4, gruene:17.6, linke:11.7, fdp:1.8, afd:0, bsw:0, fw:0 } },
+        { year:2006, date:'17. Sep. 2006', values:{ spd:30.8, linke:13.4, union:21.3, gruene:13.1, fdp:7.6, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Brandenburg': {
+      seats: 88,
+      elections: [
+        { year:2024, date:'22. Sep. 2024', values:{ spd:30.9, afd:29.2, bsw:13.5, union:12.1, gruene:4.1, fdp:0, linke:3.0, fw:0 } },
+        { year:2019, date:'01. Sep. 2019', values:{ spd:26.2, afd:23.5, union:15.6, linke:10.7, gruene:10.8, fdp:4.6, bsw:0, fw:0 } },
+        { year:2014, date:'14. Sep. 2014', values:{ spd:31.9, linke:18.6, afd:12.2, union:23.0, gruene:6.2, fdp:1.5, bsw:0, fw:0 } },
+        { year:2009, date:'27. Sep. 2009', values:{ spd:33.0, linke:27.2, union:19.8, fdp:7.2, gruene:5.7, afd:0, bsw:0, fw:0 } },
+        { year:2004, date:'19. Sep. 2004', values:{ spd:31.9, linke:28.0, union:19.4, fdp:3.3, gruene:3.6, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Bremen': {
+      seats: 84,
+      elections: [
+        { year:2023, date:'14. Mai 2023', values:{ spd:29.9, gruene:11.7, union:25.9, linke:11.1, afd:9.4, fdp:5.1, bsw:0, fw:0 } },
+        { year:2019, date:'26. Mai 2019', values:{ spd:24.9, gruene:17.4, union:24.9, linke:11.3, afd:6.1, fdp:5.9, bsw:0, fw:0 } },
+        { year:2015, date:'10. Mai 2015', values:{ spd:32.8, gruene:15.1, union:22.4, linke:9.5, afd:5.5, fdp:6.6, bsw:0, fw:0 } },
+        { year:2011, date:'22. Mai 2011', values:{ spd:38.6, gruene:22.5, union:20.4, linke:5.6, fdp:2.4, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Hamburg': {
+      seats: 123,
+      elections: [
+        { year:2025, date:'02. März 2025', values:{ spd:33.5, gruene:12.2, union:16.6, afd:8.0, linke:11.0, fdp:5.0, bsw:2.6, fw:0 } },
+        { year:2020, date:'23. Feb. 2020', values:{ spd:24.2, gruene:24.2, union:11.2, linke:9.1, afd:5.3, fdp:5.0, bsw:0, fw:0 } },
+        { year:2015, date:'15. Feb. 2015', values:{ spd:45.6, gruene:12.3, union:15.9, linke:8.5, afd:6.1, fdp:7.4, bsw:0, fw:0 } },
+        { year:2011, date:'20. Feb. 2011', values:{ spd:48.4, union:21.9, gruene:11.2, linke:6.4, fdp:6.6, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Hessen': {
+      seats: 133,
+      elections: [
+        { year:2023, date:'08. Okt. 2023', values:{ union:34.6, spd:15.1, gruene:14.8, afd:18.4, fdp:5.0, linke:3.1, bsw:0, fw:0 } },
+        { year:2018, date:'28. Okt. 2018', values:{ union:27.0, spd:19.8, gruene:19.8, afd:13.1, fdp:7.5, linke:6.3, bsw:0, fw:0 } },
+        { year:2013, date:'22. Sep. 2013', values:{ union:38.3, spd:30.7, gruene:11.1, afd:4.1, fdp:5.0, linke:5.2, bsw:0, fw:0 } },
+        { year:2009, date:'18. Jan. 2009', values:{ union:37.2, spd:23.7, gruene:13.7, fdp:16.2, linke:5.4, afd:0, bsw:0, fw:0 } },
+        { year:2008, date:'27. Jan. 2008', values:{ union:36.8, spd:36.7, gruene:7.5, fdp:9.4, linke:5.1, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Mecklenburg-Vorpommern': {
+      seats: 79,
+      elections: [
+        { year:2021, date:'26. Sep. 2021', values:{ spd:39.6, afd:16.7, union:13.3, linke:9.9, gruene:6.3, fdp:4.3, bsw:0, fw:0 } },
+        { year:2016, date:'04. Sep. 2016', values:{ spd:30.6, afd:20.8, union:19.0, linke:13.2, gruene:4.8, fdp:3.0, bsw:0, fw:0 } },
+        { year:2011, date:'04. Sep. 2011', values:{ spd:35.6, union:23.0, linke:18.4, gruene:8.7, fdp:2.8, afd:0, bsw:0, fw:0 } },
+        { year:2006, date:'17. Sep. 2006', values:{ spd:30.2, linke:16.8, union:28.8, gruene:3.4, fdp:9.6, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Niedersachsen': {
+      seats: 146,
+      elections: [
+        { year:2022, date:'09. Okt. 2022', values:{ spd:33.4, union:28.1, gruene:14.5, afd:10.9, fdp:4.7, linke:2.7, bsw:0, fw:0 } },
+        { year:2017, date:'15. Okt. 2017', values:{ spd:36.9, union:33.6, gruene:8.7, afd:6.2, fdp:7.5, linke:4.6, bsw:0, fw:0 } },
+        { year:2013, date:'20. Jan. 2013', values:{ spd:32.6, union:36.0, gruene:13.7, fdp:9.9, afd:0, linke:3.1, bsw:0, fw:0 } },
+        { year:2008, date:'27. Jan. 2008', values:{ union:42.5, spd:30.3, gruene:8.0, fdp:8.2, linke:7.0, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Nordrhein-Westfalen': {
+      seats: 195,
+      elections: [
+        { year:2022, date:'15. Mai 2022', values:{ union:35.7, spd:26.7, gruene:18.2, fdp:5.9, afd:5.4, linke:2.0, bsw:0, fw:0 } },
+        { year:2017, date:'14. Mai 2017', values:{ union:33.0, spd:31.2, fdp:12.6, afd:7.4, gruene:6.4, linke:4.9, bsw:0, fw:0 } },
+        { year:2012, date:'13. Mai 2012', values:{ spd:39.1, union:26.3, gruene:11.3, fdp:8.6, linke:2.5, afd:0, bsw:0, fw:0 } },
+        { year:2010, date:'09. Mai 2010', values:{ spd:34.5, union:34.6, gruene:12.1, fdp:6.7, linke:5.6, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Rheinland-Pfalz': {
+      seats: 101,
+      elections: [
+        { year:2021, date:'14. März 2021', values:{ spd:35.7, union:27.7, gruene:9.3, afd:8.3, fdp:5.5, linke:2.5, bsw:0, fw:0 } },
+        { year:2016, date:'13. März 2016', values:{ spd:36.2, union:31.8, gruene:5.3, afd:12.6, fdp:6.2, linke:2.8, bsw:0, fw:0 } },
+        { year:2011, date:'27. März 2011', values:{ spd:35.7, union:35.2, gruene:15.4, fdp:4.2, linke:3.0, afd:0, bsw:0, fw:0 } },
+        { year:2006, date:'26. März 2006', values:{ spd:45.6, union:32.8, gruene:4.6, fdp:8.0, linke:0, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Saarland': {
+      seats: 51,
+      elections: [
+        { year:2022, date:'27. März 2022', values:{ spd:43.5, union:28.5, afd:5.7, gruene:4.9, fdp:4.0, linke:2.6, bsw:0, fw:0 } },
+        { year:2017, date:'26. März 2017', values:{ union:40.7, spd:29.6, afd:6.2, fdp:3.3, linke:12.8, gruene:4.0, bsw:0, fw:0 } },
+        { year:2012, date:'25. März 2012', values:{ union:35.2, spd:30.6, fdp:1.2, linke:16.1, gruene:5.0, afd:0, bsw:0, fw:0 } },
+        { year:2009, date:'30. Aug. 2009', values:{ union:34.5, spd:24.5, fdp:9.2, linke:21.3, gruene:5.9, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Sachsen': {
+      seats: 120,
+      elections: [
+        { year:2024, date:'01. Sep. 2024', values:{ afd:30.6, union:31.9, bsw:11.8, spd:7.3, gruene:5.1, linke:4.5, fdp:0, fw:0 } },
+        { year:2019, date:'01. Sep. 2019', values:{ union:32.1, afd:27.5, spd:7.7, gruene:8.6, linke:10.4, fdp:4.5, bsw:0, fw:0 } },
+        { year:2014, date:'31. Aug. 2014', values:{ union:39.4, afd:9.7, spd:12.4, gruene:5.7, linke:18.9, fdp:3.8, bsw:0, fw:0 } },
+        { year:2009, date:'30. Aug. 2009', values:{ union:40.2, spd:10.4, linke:20.6, gruene:6.4, fdp:10.0, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Sachsen-Anhalt': {
+      seats: 97,
+      elections: [
+        { year:2021, date:'06. Juni 2021', values:{ union:37.1, afd:20.8, spd:8.4, gruene:5.9, fdp:6.4, linke:11.0, bsw:0, fw:0 } },
+        { year:2016, date:'13. März 2016', values:{ union:29.8, afd:24.2, spd:10.6, gruene:5.2, fdp:4.9, linke:16.3, bsw:0, fw:0 } },
+        { year:2011, date:'20. März 2011', values:{ union:32.5, spd:21.5, linke:23.7, gruene:7.1, fdp:3.8, afd:0, bsw:0, fw:0 } },
+        { year:2006, date:'26. März 2006', values:{ union:36.2, spd:21.4, linke:24.1, fdp:6.7, gruene:3.7, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Schleswig-Holstein': {
+      seats: 69,
+      elections: [
+        { year:2022, date:'08. Mai 2022', values:{ union:43.4, spd:16.0, gruene:18.3, afd:5.1, fdp:6.4, linke:0, ssw:5.7, bsw:0, fw:0 } },
+        { year:2017, date:'07. Mai 2017', values:{ union:32.0, spd:27.2, gruene:12.9, afd:5.9, fdp:11.5, linke:3.8, ssw:3.3, bsw:0, fw:0 } },
+        { year:2012, date:'06. Mai 2012', values:{ spd:30.4, union:30.8, gruene:13.2, fdp:8.2, linke:2.2, afd:0, ssw:4.6, bsw:0, fw:0 } },
+        { year:2009, date:'27. Sep. 2009', values:{ union:31.5, spd:25.4, gruene:12.4, fdp:14.9, linke:6.0, ssw:4.3, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+    'Thüringen': {
+      seats: 88,
+      elections: [
+        { year:2024, date:'01. Sep. 2024', values:{ afd:32.8, bsw:15.8, union:23.6, linke:13.1, spd:6.1, gruene:3.2, fdp:1.1, fw:0 } },
+        { year:2019, date:'27. Okt. 2019', values:{ linke:31.0, afd:23.4, union:21.7, spd:8.2, gruene:5.2, fdp:5.0, bsw:0, fw:0 } },
+        { year:2014, date:'14. Sep. 2014', values:{ linke:28.2, union:33.5, spd:12.4, afd:10.6, gruene:5.7, fdp:2.5, bsw:0, fw:0 } },
+        { year:2009, date:'30. Aug. 2009', values:{ union:31.2, linke:27.4, spd:18.5, fdp:7.6, gruene:6.2, afd:0, bsw:0, fw:0 } },
+      ]
+    },
+  };
+
+  // ================================================================
+  // RENDER: LANDTAGSWAHLEN
+  // ================================================================
+  let selectedState = null;
+
+  function renderLTWStates(){
+    const grid = document.getElementById('ltwStateGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const states = Object.keys(ltwData).sort();
+    for (const st of states){
+      const btn = document.createElement('button');
+      btn.className = 'state-btn';
+      btn.type = 'button';
+      btn.textContent = st;
+      btn.addEventListener('click', () => selectLTWState(st));
+      grid.appendChild(btn);
+    }
+  }
+
+  function selectLTWState(state){
+    selectedState = state;
+    // Button-Highlight
+    document.querySelectorAll('.state-btn').forEach(b => b.classList.toggle('selected', b.textContent === state));
+
+    // Zeige Jahresauswahl
+    const stateGrid = document.getElementById('ltwStateGrid');
+    const yearSection = document.getElementById('ltwYearSection');
+    const nameEl = document.getElementById('ltwStateName');
+    const yearList = document.getElementById('ltwYearList');
+    stateGrid.style.display = 'none';
+    yearSection.style.display = 'block';
+    nameEl.textContent = state;
+    yearList.innerHTML = '';
+
+    const data = ltwData[state];
+    for (const w of data.elections){
+      const sc = { seats: data.seats, values: w.values };
+      yearList.appendChild(buildSceneItem(
+        `Landtagswahl ${state} ${w.year}`,
+        `${w.date} · ${data.seats} Sitze`,
+        w.values, data.seats,
+        () => applyScenario(sc)
+      ));
+    }
+  }
+
+  function initLTWBack(){
+    document.getElementById('ltwBack')?.addEventListener('click', () => {
+      document.getElementById('ltwStateGrid').style.display = 'grid';
+      document.getElementById('ltwYearSection').style.display = 'none';
+      document.querySelectorAll('.state-btn').forEach(b => b.classList.remove('selected'));
+    });
+  }
+
+  // ================================================================
+  // TABS
+  // ================================================================
+  function switchTab(name){
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+  }
+
+  function initTabs(){
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+    renderPolls();
+    renderBTW();
+    renderLTWStates();
+    initLTWBack();
+  }
+
+  function init(){
+    initTabs();
+    document.getElementById('calc')?.addEventListener('click', (e) => { e.preventDefault(); updateUI(); });
+
+    // Sofortige Reaktion bei Sortierung / Filter / Minderheit / Grundmandat / Prozenten
+    document.getElementById('sortMode')?.addEventListener('change', () => updateUI());
+    document.getElementById('realisticOnly')?.addEventListener('change', () => updateUI());
+    document.getElementById('showMinority')?.addEventListener('change', () => updateUI());
+
+    for (const p of parties){
+      document.getElementById(p.key)?.addEventListener('input', () => updateUI());
+      document.getElementById(p.gm)?.addEventListener('change', () => updateUI());
+    }
+    document.getElementById('seats')?.addEventListener('input', () => updateUI());
+
+    document.getElementById('clearCoal')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      selectedCoalitionMembers = null;
+      updateSelectedCoalHint();
+      updateUI();
+    });
+
+    runSelfTests();
+    updateUI();
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+</script>
+</body>
+</html>
